@@ -1,0 +1,22 @@
+{
+  "name": "fronte-parte-bespoke",
+  "version": "1.0.0",
+  "description": "FRONTE PARTE bespoke handmade knitwear storefront with customer accounts and admin panel.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "fronte-parte",
+    "bespoke",
+    "knitwear",
+    "storefront"
+  ],
+  "author": "FRONTE PARTE",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
