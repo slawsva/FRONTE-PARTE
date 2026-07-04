@@ -975,6 +975,25 @@ function PinterestIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function InstagramIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function TelegramIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -1038,7 +1057,7 @@ function Nav() {
   }, []);
 
   const transparent = page === "home" && !scrolled && !menuOpen;
-  const inv = transparent;
+  const inv = false;
 
   const links = [
     { label: T.nav.shop, page: "shop" as Page },
@@ -1066,9 +1085,9 @@ function Nav() {
         transparent ? "bg-transparent" : "bg-background/95 backdrop-blur-sm border-b border-border"
       }`}
     >
-      <div className="max-w-screen-xl mx-auto px-6 h-16 flex items-center justify-between relative">
+      <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 h-[68px] flex items-center justify-between relative">
         {/* Left links — desktop */}
-        <nav className="hidden md:flex items-center gap-10">
+        <nav className="hidden md:flex items-center gap-8 lg:gap-12">
           {links.map((l) => (
             <button
               key={l.label}
@@ -1087,7 +1106,7 @@ function Nav() {
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-5 md:gap-7">
           <button
             onClick={() => setLang(lang === "en" ? "ru" : "en")}
             className={`hidden md:block text-[10px] tracking-[0.2em] transition-opacity hover:opacity-50 ${
@@ -1249,6 +1268,16 @@ function Footer() {
             >
               <PinterestIcon size={15} />
               Pinterest
+            </a>
+            <a
+              href="https://www.instagram.com/fronteparte/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 text-sm opacity-70 hover:opacity-100 transition-opacity mb-3"
+              style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+            >
+              <InstagramIcon size={15} />
+              Instagram
             </a>
             <a
               href="https://t.me/fronteparte"
