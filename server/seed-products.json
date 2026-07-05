@@ -1,0 +1,102 @@
+[
+  {
+    "id": "fp-001",
+    "slug": "merino-turtleneck",
+    "name": "Merino Turtleneck",
+    "nameRu": "Водолазка из мериноса",
+    "price": 45000,
+    "description": "A refined turtleneck knitted from the finest extra-fine merino wool. Weightless warmth with a structured, architectural silhouette. Each piece takes approximately 12 hours to complete.",
+    "descriptionRu": "Изысканная водолазка, связанная из тончайшей экстра-файн шерсти мериноса. Невесомое тепло с чёткими, архитектурными линиями. Каждое изделие создаётся около 12 часов.",
+    "images": [
+      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=900&h=1200&fit=crop&auto=format",
+      "https://images.unsplash.com/photo-1583744946564-b52d01a7b0b8?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "tops",
+    "sizes": ["XS", "S", "M", "L", "XL"],
+    "inStock": true,
+    "featured": true
+  },
+  {
+    "id": "fp-002",
+    "slug": "cashmere-cardigan",
+    "name": "Cashmere Cardigan",
+    "nameRu": "Кашемировый кардиган",
+    "price": 78000,
+    "description": "Spun from Mongolian Grade A cashmere at its softest. Open front, oversized silhouette, singular presence. The weight and drape evolve beautifully with each wear.",
+    "descriptionRu": "Из монгольского кашемира класса A высшего сорта. Открытый перед, оверсайз-силуэт, особенная стать. Вес и драпировка становятся только лучше с каждой ноской.",
+    "images": [
+      "https://images.unsplash.com/photo-1509631927661-8f47f5b56f81?w=900&h=1200&fit=crop&auto=format",
+      "https://images.unsplash.com/photo-1550614000-4895a10e1bfd?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "outerwear",
+    "sizes": ["S", "M", "L", "XL"],
+    "inStock": true,
+    "featured": true
+  },
+  {
+    "id": "fp-003",
+    "slug": "silk-blend-vest",
+    "name": "Silk-Blend Vest",
+    "nameRu": "Жилет с шёлком",
+    "price": 32000,
+    "description": "A gossamer-light vest woven from merino and mulberry silk. Fluid, luminous, effortlessly elegant.",
+    "descriptionRu": "Невесомый жилет из мериноса и шёлка тутового шелкопряда. Воздушный, лучистый, непринуждённо элегантный.",
+    "images": [
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=900&h=1200&fit=crop&auto=format",
+      "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "tops",
+    "sizes": ["XS", "S", "M", "L"],
+    "inStock": true,
+    "featured": true
+  },
+  {
+    "id": "fp-004",
+    "slug": "alpaca-coat",
+    "name": "Alpaca Coat",
+    "nameRu": "Пальто из альпаки",
+    "price": 125000,
+    "description": "Floor-grazing alpaca, hand-knitted over three weeks. A profound statement in restraint and craft.",
+    "descriptionRu": "Пальто до пола из альпаки, связанное вручную на протяжении трёх недель. Глубокое высказывание о сдержанности и мастерстве.",
+    "images": [
+      "https://images.unsplash.com/photo-1548624149-f9e6f4d51949?w=900&h=1200&fit=crop&auto=format",
+      "https://images.unsplash.com/photo-1544966503-7f25c6d1fc15?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "outerwear",
+    "sizes": ["S", "M", "L"],
+    "inStock": true,
+    "featured": false
+  },
+  {
+    "id": "fp-005",
+    "slug": "boucle-jacket",
+    "name": "Bouclé Jacket",
+    "nameRu": "Жакет буклé",
+    "price": 95000,
+    "description": "Structured bouclé knit with deliberately raw edges. Architecture for the body.",
+    "descriptionRu": "Структурированная вязка буклé с намеренно необработанными краями. Архитектура для тела.",
+    "images": [
+      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "outerwear",
+    "sizes": ["XS", "S", "M", "L", "XL"],
+    "inStock": true,
+    "featured": false
+  },
+  {
+    "id": "fp-006",
+    "slug": "fine-rib-dress",
+    "name": "Fine Rib Dress",
+    "nameRu": "Платье тонкой вязки",
+    "price": 67000,
+    "description": "Column dress in fine rib knit. An unbroken vertical line from collar to hem.",
+    "descriptionRu": "Платье-столб тонкой рубчатой вязки. Непрерывная вертикальная линия от воротника до подола.",
+    "images": [
+      "https://images.unsplash.com/photo-1485518882851-62656b9c5e8f?w=900&h=1200&fit=crop&auto=format"
+    ],
+    "category": "dresses",
+    "sizes": ["XS", "S", "M", "L"],
+    "inStock": false,
+    "featured": false
+  }
+]

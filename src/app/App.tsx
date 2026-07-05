@@ -2,7 +2,7 @@
  * FRONTE PARTE — Luxury Bespoke Knitwear
  *
  * Full e-commerce implementation:
- *  - Auth (regular + admin via FRONTE / PARTE)
+ *  - Auth (regular + server-protected admin)
  *  - Persistent cart per user (localStorage, syncs across "devices")
  *  - Admin panel: product CRUD + activity log
  *  - Bilingual (EN / RU)
@@ -35,6 +35,51 @@ import heroWoolStillLife from "../imports/hero-wool-still-life.jpg";
 import fpLogoDark from "../imports/fp-logo-dark-transparent.png";
 import fpLogoLight from "../imports/fp-logo-transparent.png";
 
+const archiveOriginalImages = Object.entries(
+  import.meta.glob("../imports/archive-original/*.jpg", { eager: true, import: "default" })
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, src]) => src as string);
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8787" : "");
+
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+  csrfToken?: string
+): Promise<T> {
+  const headers = new Headers(options.headers);
+
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (csrfToken) {
+    headers.set("X-CSRF-Token", csrfToken);
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    let message = "Request failed";
+    try {
+      const body = await res.json();
+      message = body?.error || message;
+    } catch {
+      /* non-json response */
+    }
+    throw new Error(message);
+  }
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -45,6 +90,7 @@ type Page =
   | "shop"
   | "product"
   | "archive"
+  | "soldOut"
   | "cart"
   | "checkout"
   | "auth"
@@ -78,6 +124,11 @@ interface AppUser {
   password: string;
   name: string;
   isAdmin: boolean;
+}
+
+interface AdminSession {
+  user: Omit<AppUser, "password">;
+  csrfToken: string;
 }
 
 interface Order {
@@ -118,6 +169,7 @@ const translations = {
     nav: {
       shop: "COLLECTION",
       archive: "ARCHIVE",
+      soldOut: "GONE",
       contact: "CONTACT",
       account: "ACCOUNT",
       cart: "CART",
@@ -160,6 +212,12 @@ const translations = {
       subtitle: "A record of handmade works",
       unique: "One of a Kind",
       limited: "Limited Edition",
+    },
+    soldOut: {
+      title: "Gone Pieces",
+      subtitle: "Sold works that have already found their person",
+      empty: "No pieces have left the collection yet.",
+      emptyBtn: "Explore Collection",
     },
     cart: {
       title: "Cart",
@@ -227,6 +285,8 @@ const translations = {
       category: "CATEGORY",
       inStock: "IN STOCK",
       featured: "FEATURED ON HOME",
+      markSoldOut: "MARK SOLD OUT",
+      restoreStock: "RETURN TO COLLECTION",
       save: "SAVE PRODUCT",
       cancel: "CANCEL",
       edit: "EDIT",
@@ -255,6 +315,7 @@ const translations = {
     nav: {
       shop: "КОЛЛЕКЦИЯ",
       archive: "АРХИВ",
+      soldOut: "УЖЕ УШЛО",
       contact: "КОНТАКТЫ",
       account: "КАБИНЕТ",
       cart: "КОРЗИНА",
@@ -297,6 +358,12 @@ const translations = {
       subtitle: "Летопись изделий ручной работы",
       unique: "Единственный экземпляр",
       limited: "Лимитированная серия",
+    },
+    soldOut: {
+      title: "Уже ушло",
+      subtitle: "Проданные работы, которые уже нашли своего человека",
+      empty: "Пока все изделия ещё в коллекции.",
+      emptyBtn: "Смотреть коллекцию",
     },
     cart: {
       title: "Корзина",
@@ -364,6 +431,8 @@ const translations = {
       category: "КАТЕГОРИЯ",
       inStock: "В НАЛИЧИИ",
       featured: "НА ГЛАВНОЙ",
+      markSoldOut: "РАСПРОДАНО",
+      restoreStock: "ВЕРНУТЬ В КОЛЛЕКЦИЮ",
       save: "СОХРАНИТЬ",
       cancel: "ОТМЕНА",
       edit: "ИЗМЕНИТЬ",
@@ -397,7 +466,7 @@ const translations = {
 const ADMIN_USER: AppUser = {
   id: "admin-fp",
   email: "admin@fronteparte.com",
-  password: "PARTE",
+  password: "",
   name: "FRONTE PARTE",
   isAdmin: true,
 };
@@ -517,92 +586,13 @@ const SEED_PRODUCTS: Product[] = [
   },
 ];
 
-const ARCHIVE_PIECES: ArchivePiece[] = [
-  {
-    id: "arc-01",
-    title: "Autumn Meditation",
-    titleRu: "Осенняя медитация",
-    season: "Autumn / Winter",
-    year: 2023,
-    description:
-      "Hand-knitted oversized cape in undyed Shetland wool. Created over six weeks — the longest single item in our archive.",
-    descriptionRu:
-      "Объёмная накидка ручной вязки из некрашеной шетландской шерсти. Создавалась шесть недель — дольше всего в нашем архиве.",
-    image:
-      "https://images.unsplash.com/photo-1544966503-7f25c6d1fc15?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-02",
-    title: "First Light",
-    titleRu: "Первый свет",
-    season: "Spring / Summer",
-    year: 2023,
-    description:
-      "Lace-knitted summer top from a single skein of hand-dyed silk. Worn in our first editorial shoot.",
-    descriptionRu:
-      "Летний топ ажурной вязки из одного мотка шёлка ручного окрашивания. Снимался в нашей первой редакционной съёмке.",
-    image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-03",
-    title: "Nomad Coat No. 3",
-    titleRu: "Пальто кочевника №3",
-    season: "Autumn / Winter",
-    year: 2022,
-    description:
-      "Third in a series of nomad coats. Herringbone in raw alpaca with leather toggles from Tuscany.",
-    descriptionRu:
-      "Третье в серии пальто кочевника. Узор ёлочка из необработанной альпаки с кожаными застёжками из Тосканы.",
-    image:
-      "https://images.unsplash.com/photo-1548624149-f9e6f4d51949?w=800&h=1000&fit=crop&auto=format",
-    isUnique: false,
-  },
-  {
-    id: "arc-04",
-    title: "Equilibrium",
-    titleRu: "Равновесие",
-    season: "Spring / Summer",
-    year: 2022,
-    description:
-      "Colour-block vest exploring tonal relationships in natural grey, ivory and sand. Limited to five pieces.",
-    descriptionRu:
-      "Жилет колор-блок, исследующий тональные отношения серого, слоновой кости и песка. Тираж: 5 экземпляров.",
-    image:
-      "https://images.unsplash.com/photo-1509631927661-8f47f5b56f81?w=800&h=1000&fit=crop&auto=format",
-    isUnique: false,
-  },
-  {
-    id: "arc-05",
-    title: "Origin",
-    titleRu: "Начало",
-    season: "Autumn / Winter",
-    year: 2021,
-    description:
-      "The first piece ever made under the FRONTE PARTE name. A turtleneck that established our gauge and our philosophy.",
-    descriptionRu:
-      "Первое изделие под именем FRONTE PARTE. Водолазка, определившая нашу плотность вязки и философию.",
-    image:
-      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-06",
-    title: "Night Study",
-    titleRu: "Ночной этюд",
-    season: "Autumn / Winter",
-    year: 2021,
-    description:
-      "Midnight mohair sweater knitted under lamplight during winter. The texture holds the hours.",
-    descriptionRu:
-      "Мохеровый свитер, связанный при свете лампы зимой. Фактура хранит эти часы.",
-    image:
-      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-];
+const ARCHIVE_GROUP_SIZES = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 1, 1, 1, 1, 1, 11];
+
+const ARCHIVE_GROUPS = ARCHIVE_GROUP_SIZES.reduce<string[][]>((groups, size) => {
+  const start = groups.reduce((total, group) => total + group.length, 0);
+  groups.push(archiveOriginalImages.slice(start, start + size));
+  return groups;
+}, []);
 
 const PAYMENT_METHODS = [
   { id: "apple_usd", labelKey: "apple" as const, currency: "USD", icon: "apple" },
@@ -661,11 +651,16 @@ interface AppCtx {
   navigate: (p: Page, params?: Record<string, string>) => void;
   params: Record<string, string>;
   user: AppUser | null;
-  login: (loginStr: string, password: string) => boolean;
-  logout: () => void;
+  isAdminAuthenticated: boolean;
+  login: (loginStr: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   register: (email: string, password: string, name: string) => boolean;
   products: Product[];
   setProducts: (p: Product[] | ((prev: Product[]) => Product[])) => void;
+  reloadProducts: () => Promise<void>;
+  saveAdminProduct: (product: Omit<Product, "id">, id?: string) => Promise<Product>;
+  deleteAdminProduct: (id: string) => Promise<void>;
+  setAdminProductStock: (id: string, inStock: boolean) => Promise<Product>;
   cart: CartItem[];
   addToCart: (productId: string, size: string) => void;
   removeFromCart: (productId: string, size: string) => void;
@@ -691,17 +686,44 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   const [page, setPage] = useState<Page>("home");
   const [params, setParams] = useState<Record<string, string>>({});
   const [user, setUser] = useLocalStorage<AppUser | null>("fp_user", null);
-  const [users, setUsers] = useLocalStorage<AppUser[]>("fp_users", [ADMIN_USER]);
+  const [users, setUsers] = useLocalStorage<AppUser[]>("fp_users", []);
   const [products, setProducts] = useLocalStorage<Product[]>("fp_products", SEED_PRODUCTS);
   const [carts, setCarts] = useLocalStorage<Record<string, CartItem[]>>("fp_carts", {});
   const [orders, setOrders] = useLocalStorage<Order[]>("fp_orders", []);
   const [activity, setActivity] = useLocalStorage<AdminActivity[]>("fp_activity", []);
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
 
-  // Ensure admin user always exists
+  // Remove old client-side admin records if they exist from earlier builds.
   useEffect(() => {
-    if (!users.find((u) => u.id === ADMIN_USER.id)) {
-      setUsers((prev) => [ADMIN_USER, ...prev]);
-    }
+    setUsers((prev) => prev.filter((u) => !u.isAdmin && u.id !== ADMIN_USER.id));
+  }, [setUsers]);
+
+  const reloadProducts = useCallback(async () => {
+    const serverProducts = await apiRequest<Product[]>("/api/products");
+    setProducts(serverProducts);
+  }, [setProducts]);
+
+  useEffect(() => {
+    reloadProducts().catch(() => {
+      /* The app can still render the bundled seed data if the API is offline. */
+    });
+  }, [reloadProducts]);
+
+  useEffect(() => {
+    apiRequest<{ authenticated: boolean; user?: Omit<AppUser, "password">; csrfToken?: string }>(
+      "/api/auth/session"
+    )
+      .then((session) => {
+        if (session.authenticated && session.user && session.csrfToken) {
+          setAdminSession({ user: session.user, csrfToken: session.csrfToken });
+          setUser({ ...session.user, password: "" });
+        } else if (user?.isAdmin) {
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        if (user?.isAdmin) setUser(null);
+      });
   }, []);
 
   const setLang = useCallback((l: Lang) => setLangRaw(l), [setLangRaw]);
@@ -716,6 +738,7 @@ function AppProvider({ children }: { children: React.ReactNode }) {
       shop: "Collection — FRONTE PARTE",
       product: "Product — FRONTE PARTE",
       archive: "Archive — FRONTE PARTE",
+      soldOut: "Gone Pieces — FRONTE PARTE",
       cart: "Cart — FRONTE PARTE",
       checkout: "Checkout — FRONTE PARTE",
       auth: "Sign In — FRONTE PARTE",
@@ -726,13 +749,31 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(
-    (loginStr: string, password: string): boolean => {
-      if (loginStr === "FRONTE" && password === "PARTE") {
-        setUser(ADMIN_USER);
-        return true;
+    async (loginStr: string, password: string): Promise<boolean> => {
+      const normalizedLogin = loginStr.trim();
+      const isAdminLogin =
+        normalizedLogin === "FRONTE" || normalizedLogin === ADMIN_USER.email;
+
+      if (isAdminLogin) {
+        try {
+          const result = await apiRequest<{
+            user: Omit<AppUser, "password">;
+            csrfToken: string;
+          }>("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ login: normalizedLogin, password }),
+          });
+          setAdminSession({ user: result.user, csrfToken: result.csrfToken });
+          setUser({ ...result.user, password: "" });
+          await reloadProducts();
+          return true;
+        } catch {
+          return false;
+        }
       }
+
       const found = users.find(
-        (u) => (u.email === loginStr || u.name === loginStr) && u.password === password
+        (u) => !u.isAdmin && (u.email === normalizedLogin || u.name === normalizedLogin) && u.password === password
       );
       if (found) {
         setUser(found);
@@ -740,16 +781,23 @@ function AppProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     },
-    [users, setUser]
+    [users, setUser, reloadProducts]
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (adminSession) {
+      await apiRequest("/api/auth/logout", { method: "POST" }, adminSession.csrfToken).catch(
+        () => undefined
+      );
+    }
+    setAdminSession(null);
     setUser(null);
     navigate("home");
-  }, [setUser, navigate]);
+  }, [adminSession, setUser, navigate]);
 
   const register = useCallback(
     (email: string, password: string, name: string): boolean => {
+      if (email === ADMIN_USER.email || name.trim() === "FRONTE") return false;
       if (users.find((u) => u.email === email)) return false;
       const newUser: AppUser = {
         id: `user_${Date.now()}`,
@@ -862,11 +910,66 @@ function AppProvider({ children }: { children: React.ReactNode }) {
     [setActivity]
   );
 
+  const saveAdminProduct = useCallback(
+    async (product: Omit<Product, "id">, id?: string): Promise<Product> => {
+      if (!adminSession) throw new Error("Admin session required");
+
+      const saved = await apiRequest<Product>(
+        id ? `/api/products/${encodeURIComponent(id)}` : "/api/products",
+        {
+          method: id ? "PUT" : "POST",
+          body: JSON.stringify(product),
+        },
+        adminSession.csrfToken
+      );
+
+      setProducts((prev) =>
+        id ? prev.map((p) => (p.id === id ? saved : p)) : [...prev, saved]
+      );
+      return saved;
+    },
+    [adminSession, setProducts]
+  );
+
+  const deleteAdminProduct = useCallback(
+    async (id: string): Promise<void> => {
+      if (!adminSession) throw new Error("Admin session required");
+
+      await apiRequest(
+        `/api/products/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+        adminSession.csrfToken
+      );
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    },
+    [adminSession, setProducts]
+  );
+
+  const setAdminProductStock = useCallback(
+    async (id: string, inStock: boolean): Promise<Product> => {
+      if (!adminSession) throw new Error("Admin session required");
+
+      const updated = await apiRequest<Product>(
+        `/api/products/${encodeURIComponent(id)}/stock`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ inStock }),
+        },
+        adminSession.csrfToken
+      );
+
+      setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      return updated;
+    },
+    [adminSession, setProducts]
+  );
+
   // Filter orders per user (admin sees all)
+  const isAdminAuthenticated = Boolean(adminSession);
   const visibleOrders = useMemo(
     () =>
-      !user ? [] : user.isAdmin ? orders : orders.filter((o) => o.userId === user.id),
-    [user, orders]
+      !user ? [] : isAdminAuthenticated ? orders : orders.filter((o) => o.userId === user.id),
+    [user, orders, isAdminAuthenticated]
   );
 
   const value: AppCtx = {
@@ -877,11 +980,16 @@ function AppProvider({ children }: { children: React.ReactNode }) {
     navigate,
     params,
     user,
+    isAdminAuthenticated,
     login,
     logout,
     register,
     products,
     setProducts,
+    reloadProducts,
+    saveAdminProduct,
+    deleteAdminProduct,
+    setAdminProductStock,
     cart,
     addToCart,
     removeFromCart,
@@ -975,6 +1083,25 @@ function PinterestIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function InstagramIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function TelegramIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -1027,7 +1154,7 @@ function PaymentIcon({ type, inverted = false }: { type: string; inverted?: bool
 // ═══════════════════════════════════════════════════════════════
 
 function Nav() {
-  const { T, lang, setLang, navigate, page, user, cartCount } = useApp();
+  const { T, lang, setLang, navigate, page, user, isAdminAuthenticated, cartCount } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -1038,11 +1165,12 @@ function Nav() {
   }, []);
 
   const transparent = page === "home" && !scrolled && !menuOpen;
-  const inv = transparent;
+  const inv = false;
 
   const links = [
     { label: T.nav.shop, page: "shop" as Page },
     { label: T.nav.archive, page: "archive" as Page },
+    { label: T.nav.soldOut, page: "soldOut" as Page },
     {
       label: T.nav.contact,
       page: "home" as Page,
@@ -1066,9 +1194,9 @@ function Nav() {
         transparent ? "bg-transparent" : "bg-background/95 backdrop-blur-sm border-b border-border"
       }`}
     >
-      <div className="max-w-screen-xl mx-auto px-6 h-16 flex items-center justify-between relative">
+      <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 h-[68px] flex items-center justify-between relative">
         {/* Left links — desktop */}
-        <nav className="hidden md:flex items-center gap-10">
+        <nav className="hidden md:flex items-center gap-8 lg:gap-12">
           {links.map((l) => (
             <button
               key={l.label}
@@ -1087,7 +1215,7 @@ function Nav() {
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-5 md:gap-7">
           <button
             onClick={() => setLang(lang === "en" ? "ru" : "en")}
             className={`hidden md:block text-[10px] tracking-[0.2em] transition-opacity hover:opacity-50 ${
@@ -1101,7 +1229,7 @@ function Nav() {
 
           <button
             onClick={() =>
-              navigate(user ? (user.isAdmin ? "admin" : "account") : "auth")
+              navigate(isAdminAuthenticated ? "admin" : user ? "account" : "auth")
             }
             className={`transition-opacity hover:opacity-50 ${inv ? "text-[#F8F5F0]" : "text-foreground"}`}
             aria-label={T.nav.account}
@@ -1161,7 +1289,7 @@ function Nav() {
             <div className="pt-5 border-t border-border flex justify-between">
               <button
                 onClick={() => {
-                  navigate(user ? "account" : "auth");
+                  navigate(isAdminAuthenticated ? "admin" : user ? "account" : "auth");
                   setMenuOpen(false);
                 }}
                 className="text-[11px] tracking-[0.2em] text-foreground/60 hover:text-foreground transition-colors"
@@ -1190,6 +1318,11 @@ function Nav() {
 
 function Footer() {
   const { T, navigate } = useApp();
+  const footerLinks = [
+    { label: T.nav.shop, page: "shop" as Page },
+    { label: T.nav.archive, page: "archive" as Page },
+    { label: T.nav.soldOut, page: "soldOut" as Page },
+  ];
 
   return (
     <footer id="fp-contact" className="bg-foreground text-[#F8F5F0] pt-20 pb-10">
@@ -1251,6 +1384,16 @@ function Footer() {
               Pinterest
             </a>
             <a
+              href="https://www.instagram.com/fronteparte/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 text-sm opacity-70 hover:opacity-100 transition-opacity mb-3"
+              style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+            >
+              <InstagramIcon size={15} />
+              Instagram
+            </a>
+            <a
               href="https://t.me/fronteparte"
               target="_blank"
               rel="noopener noreferrer"
@@ -1271,14 +1414,14 @@ function Footer() {
             {T.footer.rights}
           </p>
           <div className="flex gap-8">
-            {(["shop", "archive"] as Page[]).map((p) => (
+            {footerLinks.map((l) => (
               <button
-                key={p}
-                onClick={() => navigate(p)}
+                key={l.page}
+                onClick={() => navigate(l.page)}
                 className="text-[9px] tracking-[0.15em] opacity-30 hover:opacity-60 transition-opacity"
                 style={{ fontFamily: '"Jost", sans-serif' }}
               >
-                {p.toUpperCase()}
+                {l.label}
               </button>
             ))}
           </div>
@@ -1367,7 +1510,7 @@ function ProductCard({ product }: { product: Product }) {
 
 function HomePage() {
   const { T, navigate, products, lang } = useApp();
-  const featured = products.filter((p) => p.featured).slice(0, 3);
+  const featured = products.filter((p) => p.featured && p.inStock).slice(0, 3);
   const marquee = T.home.marquee.repeat(6);
 
   return (
@@ -1525,6 +1668,7 @@ function HomePage() {
 function ShopPage() {
   const { T, products, lang } = useApp();
   const [cat, setCat] = useState("all");
+  const availableProducts = products.filter((p) => p.inStock);
 
   const catMap: Record<string, string> = {
     all: T.shop.all,
@@ -1534,8 +1678,11 @@ function ShopPage() {
     accessories: T.shop.accessories,
   };
 
-  const allCats = ["all", ...Array.from(new Set(products.map((p) => p.category)))];
-  const visible = cat === "all" ? products : products.filter((p) => p.category === cat);
+  const allCats = ["all", ...Array.from(new Set(availableProducts.map((p) => p.category)))];
+  const visible =
+    cat === "all"
+      ? availableProducts
+      : availableProducts.filter((p) => p.category === cat);
 
   return (
     <main className="pt-16">
@@ -1570,6 +1717,61 @@ function ShopPage() {
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
+      </div>
+      <Footer />
+    </main>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOLD OUT PAGE
+// ═══════════════════════════════════════════════════════════════
+
+function SoldOutPage() {
+  const { T, products, navigate } = useApp();
+  const gonePieces = products.filter((p) => !p.inStock);
+
+  return (
+    <main className="pt-16">
+      <div className="max-w-screen-xl mx-auto px-6 py-16">
+        <div className="mb-14">
+          <h1
+            className="text-5xl md:text-7xl italic text-foreground mb-4"
+            style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
+          >
+            {T.soldOut.title}
+          </h1>
+          <p
+            className="text-sm text-foreground/45"
+            style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+          >
+            {T.soldOut.subtitle}
+          </p>
+        </div>
+
+        {gonePieces.length === 0 ? (
+          <div className="border-y border-border py-16 text-center">
+            <p
+              className="text-sm text-foreground/35 mb-8"
+              style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+            >
+              {T.soldOut.empty}
+            </p>
+            <button
+              onClick={() => navigate("shop")}
+              className="text-[9px] tracking-[0.22em] border border-foreground px-10 py-4 hover:bg-foreground hover:text-background transition-all"
+              style={{ fontFamily: '"Jost", sans-serif' }}
+            >
+              {T.soldOut.emptyBtn.toUpperCase()}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
+            {gonePieces.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
       </div>
       <Footer />
     </main>
@@ -1764,12 +1966,19 @@ function ProductPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function ArchivePage() {
-  const { T, lang } = useApp();
+  const { T } = useApp();
+
+  const gridClass = (count: number) => {
+    if (count === 1) return "grid-cols-1 max-w-[760px] mx-auto";
+    if (count === 2) return "grid-cols-1 md:grid-cols-2";
+    if (count === 3) return "grid-cols-1 md:grid-cols-3";
+    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  };
 
   return (
     <main className="pt-16">
-      <div className="max-w-screen-xl mx-auto px-6 py-16">
-        <div className="mb-16">
+      <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 py-16">
+        <div className="mb-14 max-w-screen-xl mx-auto">
           <h1
             className="text-5xl md:text-7xl italic text-foreground mb-4"
             style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
@@ -1784,65 +1993,21 @@ function ArchivePage() {
           </p>
         </div>
 
-        {/* Masonry-style grid with alternating heights */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-20">
-          {ARCHIVE_PIECES.map((piece, i) => {
-            const title = lang === "en" ? piece.title : piece.titleRu;
-            const desc = lang === "en" ? piece.description : piece.descriptionRu;
-            const pb = i % 3 === 1 ? "145%" : "120%";
-
-            return (
-              <article key={piece.id}>
-                <div
-                  className="relative overflow-hidden bg-secondary mb-5"
-                  style={{ paddingBottom: pb }}
-                >
+        <div className="max-w-screen-xl mx-auto space-y-5 md:space-y-7">
+          {ARCHIVE_GROUPS.map((group, groupIndex) => (
+            <section key={groupIndex} className={`grid ${gridClass(group.length)} items-start gap-5 md:gap-6`}>
+              {group.map((image, imageIndex) => (
+                <figure key={`${groupIndex}-${imageIndex}`} className="m-0 self-start">
                   <img
-                    src={piece.image}
-                    alt={title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-[1.04]"
+                    src={image}
+                    alt=""
+                    className="block w-full h-auto"
                     loading="lazy"
                   />
-                  {piece.isUnique && (
-                    <div className="absolute top-4 left-4">
-                      <span
-                        className="text-[8px] tracking-[0.18em] bg-foreground text-background px-3 py-1.5"
-                        style={{ fontFamily: '"Jost", sans-serif' }}
-                      >
-                        {T.archive.unique.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-start justify-between mb-2">
-                  <h2
-                    className="text-xl italic text-foreground leading-tight"
-                    style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
-                  >
-                    {title}
-                  </h2>
-                  <span
-                    className="text-[9px] tracking-[0.1em] text-foreground/35 mt-1 ml-4 shrink-0"
-                    style={{ fontFamily: '"Jost", sans-serif' }}
-                  >
-                    {piece.year}
-                  </span>
-                </div>
-                <p
-                  className="text-[9px] tracking-[0.18em] text-foreground/40 mb-3"
-                  style={{ fontFamily: '"Jost", sans-serif' }}
-                >
-                  {piece.season.toUpperCase()}
-                </p>
-                <p
-                  className="text-sm text-foreground/55 leading-relaxed"
-                  style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
-                >
-                  {desc}
-                </p>
-              </article>
-            );
-          })}
+                </figure>
+              ))}
+            </section>
+          ))}
         </div>
       </div>
       <Footer />
@@ -2195,28 +2360,36 @@ function CheckoutPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function AuthPage() {
-  const { T, login, register, navigate, user } = useApp();
+  const { T, login, register, navigate, user, isAdminAuthenticated } = useApp();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [fields, setFields] = useState({ login: "", email: "", password: "", name: "" });
   const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Redirect when already authenticated
   useEffect(() => {
-    if (user) navigate(user.isAdmin ? "admin" : "account");
-  }, [user]);
+    if (isAdminAuthenticated) navigate("admin");
+    else if (user && !user.isAdmin) navigate("account");
+  }, [user, isAdminAuthenticated]);
 
   const set = (k: keyof typeof fields) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setFields((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErr("");
+    setSubmitting(true);
     if (mode === "login") {
-      if (!login(fields.login, fields.password)) setErr(T.auth.error);
+      const ok = await login(fields.login, fields.password);
+      if (!ok) setErr(T.auth.error);
     } else {
-      if (!fields.name || !fields.email || !fields.password) return;
+      if (!fields.name || !fields.email || !fields.password) {
+        setSubmitting(false);
+        return;
+      }
       if (!register(fields.email, fields.password, fields.name)) setErr(T.auth.error);
     }
+    setSubmitting(false);
   };
 
   const inputClass =
@@ -2292,7 +2465,10 @@ function AuthPage() {
 
           <button
             type="submit"
-            className="w-full py-4 bg-foreground text-background text-[10px] tracking-[0.22em] hover:bg-foreground/80 transition-colors mt-1"
+            disabled={submitting}
+            className={`w-full py-4 text-background text-[10px] tracking-[0.22em] transition-colors mt-1 ${
+              submitting ? "bg-foreground/55 cursor-wait" : "bg-foreground hover:bg-foreground/80"
+            }`}
             style={{ fontFamily: '"Jost", sans-serif' }}
           >
             {mode === "login" ? T.auth.signInBtn : T.auth.createBtn}
@@ -2530,22 +2706,36 @@ const emptyProductForm = (): Omit<Product, "id"> => ({
 });
 
 function AdminPage() {
-  const { T, lang, user, logout, navigate, products, setProducts, activity, logActivity } =
-    useApp();
+  const {
+    T,
+    lang,
+    isAdminAuthenticated,
+    logout,
+    navigate,
+    products,
+    activity,
+    logActivity,
+    saveAdminProduct,
+    deleteAdminProduct,
+    setAdminProductStock,
+  } = useApp();
 
   const [tab, setTab] = useState<AdminTab>("products");
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<Omit<Product, "id">>(emptyProductForm());
   const [sizesStr, setSizesStr] = useState("XS,S,M,L,XL");
   const [imagesStr, setImagesStr] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user?.isAdmin) navigate("auth");
-  }, [user]);
+    if (!isAdminAuthenticated) navigate("auth");
+  }, [isAdminAuthenticated]);
 
-  if (!user?.isAdmin) return null;
+  if (!isAdminAuthenticated) return null;
 
   const startEdit = (p: Product) => {
+    setAdminError("");
     setEditing(p);
     setForm({
       slug: p.slug,
@@ -2565,37 +2755,79 @@ function AdminPage() {
     setTab("add");
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const target = products.find((p) => p.id === id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    logActivity(
-      `Product deleted: "${target?.name}"`,
-      `Товар удалён: "${target?.nameRu || target?.name}"`
-    );
+    setAdminError("");
+    setBusy(true);
+    try {
+      await deleteAdminProduct(id);
+      logActivity(
+        `Product deleted: "${target?.name}"`,
+        `Товар удалён: "${target?.nameRu || target?.name}"`
+      );
+    } catch {
+      setAdminError(lang === "ru" ? "Не удалось удалить товар." : "Could not delete product.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSave = () => {
+  const toggleSoldOut = async (id: string) => {
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+
+    setAdminError("");
+    setBusy(true);
+    try {
+      await setAdminProductStock(id, !target.inStock);
+      if (target.inStock) {
+        logActivity(
+          `Product marked sold out: "${target.name}"`,
+          `Товар отмечен как распроданный: "${target.nameRu || target.name}"`
+        );
+      } else {
+        logActivity(
+          `Product returned to collection: "${target.name}"`,
+          `Товар возвращён в коллекцию: "${target.nameRu || target.name}"`
+        );
+      }
+    } catch {
+      setAdminError(lang === "ru" ? "Не удалось изменить статус товара." : "Could not update product status.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSave = async () => {
     const images = imagesStr.split(",").map((s) => s.trim()).filter(Boolean);
     const sizes = sizesStr.split(",").map((s) => s.trim()).filter(Boolean);
     const slug = form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const final = { ...form, images, sizes, slug };
 
-    if (editing) {
-      setProducts((prev) => prev.map((p) => (p.id === editing.id ? { ...final, id: editing.id } : p)));
-      logActivity(`Product updated: "${final.name}"`, `Товар обновлён: "${final.nameRu || final.name}"`);
-    } else {
-      setProducts((prev) => [...prev, { ...final, id: `fp-${Date.now()}` }]);
-      logActivity(`Product added: "${final.name}"`, `Товар добавлен: "${final.nameRu || final.name}"`);
-    }
+    setAdminError("");
+    setBusy(true);
+    try {
+      const saved = await saveAdminProduct(final, editing?.id);
+      if (editing) {
+        logActivity(`Product updated: "${saved.name}"`, `Товар обновлён: "${saved.nameRu || saved.name}"`);
+      } else {
+        logActivity(`Product added: "${saved.name}"`, `Товар добавлен: "${saved.nameRu || saved.name}"`);
+      }
 
-    setEditing(null);
-    setForm(emptyProductForm());
-    setImagesStr("");
-    setSizesStr("XS,S,M,L,XL");
-    setTab("products");
+      setEditing(null);
+      setForm(emptyProductForm());
+      setImagesStr("");
+      setSizesStr("XS,S,M,L,XL");
+      setTab("products");
+    } catch {
+      setAdminError(lang === "ru" ? "Не удалось сохранить товар. Проверьте поля и URL картинок." : "Could not save product. Check fields and image URLs.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const cancelEdit = () => {
+    setAdminError("");
     setEditing(null);
     setForm(emptyProductForm());
     setImagesStr("");
@@ -2655,6 +2887,14 @@ function AdminPage() {
       </div>
 
       <div className="max-w-screen-xl mx-auto px-6 py-10">
+        {adminError && (
+          <div
+            className="mb-6 border border-destructive/25 bg-destructive/5 px-4 py-3 text-[12px] text-destructive/80"
+            style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+          >
+            {adminError}
+          </div>
+        )}
 
         {/* ── Products list ── */}
         {tab === "products" && (
@@ -2666,8 +2906,9 @@ function AdminPage() {
               >
                 {T.admin.tabs.products}
               </h2>
-              <button
-                onClick={() => { setEditing(null); setForm(emptyProductForm()); setImagesStr(""); setTab("add"); }}
+                <button
+                onClick={() => { setAdminError(""); setEditing(null); setForm(emptyProductForm()); setImagesStr(""); setTab("add"); }}
+                disabled={busy}
                 className="flex items-center gap-2 text-[9px] tracking-[0.18em] bg-foreground text-background px-5 py-3 hover:bg-foreground/80 transition-colors"
                 style={{ fontFamily: '"Jost", sans-serif' }}
               >
@@ -2718,7 +2959,20 @@ function AdminPage() {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
+                      onClick={() => toggleSoldOut(p.id)}
+                      disabled={busy}
+                      className={`text-[8.5px] tracking-[0.12em] px-3 py-2 border transition-colors ${
+                        p.inStock
+                          ? "border-border text-foreground/55 hover:border-foreground/50 hover:text-foreground"
+                          : "border-foreground/25 bg-background text-foreground/70 hover:border-foreground/55"
+                      }`}
+                      style={{ fontFamily: '"Jost", sans-serif' }}
+                    >
+                      {(p.inStock ? T.admin.markSoldOut : T.admin.restoreStock).toUpperCase()}
+                    </button>
+                    <button
                       onClick={() => startEdit(p)}
+                      disabled={busy}
                       className="text-[8.5px] tracking-[0.12em] px-3 py-2 border border-border hover:border-foreground/50 transition-colors text-foreground/55 hover:text-foreground"
                       style={{ fontFamily: '"Jost", sans-serif' }}
                     >
@@ -2726,6 +2980,7 @@ function AdminPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(p.id)}
+                      disabled={busy}
                       className="text-[8.5px] tracking-[0.12em] px-3 py-2 border border-border hover:border-destructive/50 transition-colors text-foreground/55 hover:text-destructive"
                       style={{ fontFamily: '"Jost", sans-serif' }}
                     >
@@ -2810,13 +3065,17 @@ function AdminPage() {
               <div className="flex gap-4 pt-3">
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-4 bg-foreground text-background text-[10px] tracking-[0.22em] hover:bg-foreground/80 transition-colors"
+                  disabled={busy}
+                  className={`flex-1 py-4 text-background text-[10px] tracking-[0.22em] transition-colors ${
+                    busy ? "bg-foreground/55 cursor-wait" : "bg-foreground hover:bg-foreground/80"
+                  }`}
                   style={{ fontFamily: '"Jost", sans-serif' }}
                 >
                   {T.admin.save.toUpperCase()}
                 </button>
                 <button
                   onClick={cancelEdit}
+                  disabled={busy}
                   className="px-8 py-4 border border-border text-[10px] tracking-[0.18em] hover:border-foreground/50 transition-colors text-foreground/60"
                   style={{ fontFamily: '"Jost", sans-serif' }}
                 >
@@ -2882,6 +3141,7 @@ function PageRouter() {
     case "shop":     return <ShopPage />;
     case "product":  return <ProductPage />;
     case "archive":  return <ArchivePage />;
+    case "soldOut":  return <SoldOutPage />;
     case "cart":     return <CartPage />;
     case "checkout": return <CheckoutPage />;
     case "auth":     return <AuthPage />;
