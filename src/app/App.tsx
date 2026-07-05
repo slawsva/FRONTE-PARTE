@@ -35,6 +35,12 @@ import heroWoolStillLife from "../imports/hero-wool-still-life.jpg";
 import fpLogoDark from "../imports/fp-logo-dark-transparent.png";
 import fpLogoLight from "../imports/fp-logo-transparent.png";
 
+const archiveOriginalImages = Object.entries(
+  import.meta.glob("../imports/archive-original/*.jpg", { eager: true, import: "default" })
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, src]) => src as string);
+
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -517,92 +523,13 @@ const SEED_PRODUCTS: Product[] = [
   },
 ];
 
-const ARCHIVE_PIECES: ArchivePiece[] = [
-  {
-    id: "arc-01",
-    title: "Autumn Meditation",
-    titleRu: "Осенняя медитация",
-    season: "Autumn / Winter",
-    year: 2023,
-    description:
-      "Hand-knitted oversized cape in undyed Shetland wool. Created over six weeks — the longest single item in our archive.",
-    descriptionRu:
-      "Объёмная накидка ручной вязки из некрашеной шетландской шерсти. Создавалась шесть недель — дольше всего в нашем архиве.",
-    image:
-      "https://images.unsplash.com/photo-1544966503-7f25c6d1fc15?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-02",
-    title: "First Light",
-    titleRu: "Первый свет",
-    season: "Spring / Summer",
-    year: 2023,
-    description:
-      "Lace-knitted summer top from a single skein of hand-dyed silk. Worn in our first editorial shoot.",
-    descriptionRu:
-      "Летний топ ажурной вязки из одного мотка шёлка ручного окрашивания. Снимался в нашей первой редакционной съёмке.",
-    image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-03",
-    title: "Nomad Coat No. 3",
-    titleRu: "Пальто кочевника №3",
-    season: "Autumn / Winter",
-    year: 2022,
-    description:
-      "Third in a series of nomad coats. Herringbone in raw alpaca with leather toggles from Tuscany.",
-    descriptionRu:
-      "Третье в серии пальто кочевника. Узор ёлочка из необработанной альпаки с кожаными застёжками из Тосканы.",
-    image:
-      "https://images.unsplash.com/photo-1548624149-f9e6f4d51949?w=800&h=1000&fit=crop&auto=format",
-    isUnique: false,
-  },
-  {
-    id: "arc-04",
-    title: "Equilibrium",
-    titleRu: "Равновесие",
-    season: "Spring / Summer",
-    year: 2022,
-    description:
-      "Colour-block vest exploring tonal relationships in natural grey, ivory and sand. Limited to five pieces.",
-    descriptionRu:
-      "Жилет колор-блок, исследующий тональные отношения серого, слоновой кости и песка. Тираж: 5 экземпляров.",
-    image:
-      "https://images.unsplash.com/photo-1509631927661-8f47f5b56f81?w=800&h=1000&fit=crop&auto=format",
-    isUnique: false,
-  },
-  {
-    id: "arc-05",
-    title: "Origin",
-    titleRu: "Начало",
-    season: "Autumn / Winter",
-    year: 2021,
-    description:
-      "The first piece ever made under the FRONTE PARTE name. A turtleneck that established our gauge and our philosophy.",
-    descriptionRu:
-      "Первое изделие под именем FRONTE PARTE. Водолазка, определившая нашу плотность вязки и философию.",
-    image:
-      "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-  {
-    id: "arc-06",
-    title: "Night Study",
-    titleRu: "Ночной этюд",
-    season: "Autumn / Winter",
-    year: 2021,
-    description:
-      "Midnight mohair sweater knitted under lamplight during winter. The texture holds the hours.",
-    descriptionRu:
-      "Мохеровый свитер, связанный при свете лампы зимой. Фактура хранит эти часы.",
-    image:
-      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1000&fit=crop&auto=format",
-    isUnique: true,
-  },
-];
+const ARCHIVE_GROUP_SIZES = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 1, 1, 1, 1, 1, 11];
+
+const ARCHIVE_GROUPS = ARCHIVE_GROUP_SIZES.reduce<string[][]>((groups, size) => {
+  const start = groups.reduce((total, group) => total + group.length, 0);
+  groups.push(archiveOriginalImages.slice(start, start + size));
+  return groups;
+}, []);
 
 const PAYMENT_METHODS = [
   { id: "apple_usd", labelKey: "apple" as const, currency: "USD", icon: "apple" },
@@ -1793,12 +1720,19 @@ function ProductPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function ArchivePage() {
-  const { T, lang } = useApp();
+  const { T } = useApp();
+
+  const gridClass = (count: number) => {
+    if (count === 1) return "grid-cols-1 max-w-[760px] mx-auto";
+    if (count === 2) return "grid-cols-1 md:grid-cols-2";
+    if (count === 3) return "grid-cols-1 md:grid-cols-3";
+    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  };
 
   return (
     <main className="pt-16">
-      <div className="max-w-screen-xl mx-auto px-6 py-16">
-        <div className="mb-16">
+      <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 py-16">
+        <div className="mb-14 max-w-screen-xl mx-auto">
           <h1
             className="text-5xl md:text-7xl italic text-foreground mb-4"
             style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
@@ -1813,65 +1747,21 @@ function ArchivePage() {
           </p>
         </div>
 
-        {/* Masonry-style grid with alternating heights */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-20">
-          {ARCHIVE_PIECES.map((piece, i) => {
-            const title = lang === "en" ? piece.title : piece.titleRu;
-            const desc = lang === "en" ? piece.description : piece.descriptionRu;
-            const pb = i % 3 === 1 ? "145%" : "120%";
-
-            return (
-              <article key={piece.id}>
-                <div
-                  className="relative overflow-hidden bg-secondary mb-5"
-                  style={{ paddingBottom: pb }}
-                >
+        <div className="max-w-screen-xl mx-auto space-y-5 md:space-y-7">
+          {ARCHIVE_GROUPS.map((group, groupIndex) => (
+            <section key={groupIndex} className={`grid ${gridClass(group.length)} items-start gap-5 md:gap-6`}>
+              {group.map((image, imageIndex) => (
+                <figure key={`${groupIndex}-${imageIndex}`} className="m-0 self-start">
                   <img
-                    src={piece.image}
-                    alt={title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-[1.04]"
+                    src={image}
+                    alt=""
+                    className="block w-full h-auto"
                     loading="lazy"
                   />
-                  {piece.isUnique && (
-                    <div className="absolute top-4 left-4">
-                      <span
-                        className="text-[8px] tracking-[0.18em] bg-foreground text-background px-3 py-1.5"
-                        style={{ fontFamily: '"Jost", sans-serif' }}
-                      >
-                        {T.archive.unique.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-start justify-between mb-2">
-                  <h2
-                    className="text-xl italic text-foreground leading-tight"
-                    style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
-                  >
-                    {title}
-                  </h2>
-                  <span
-                    className="text-[9px] tracking-[0.1em] text-foreground/35 mt-1 ml-4 shrink-0"
-                    style={{ fontFamily: '"Jost", sans-serif' }}
-                  >
-                    {piece.year}
-                  </span>
-                </div>
-                <p
-                  className="text-[9px] tracking-[0.18em] text-foreground/40 mb-3"
-                  style={{ fontFamily: '"Jost", sans-serif' }}
-                >
-                  {piece.season.toUpperCase()}
-                </p>
-                <p
-                  className="text-sm text-foreground/55 leading-relaxed"
-                  style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
-                >
-                  {desc}
-                </p>
-              </article>
-            );
-          })}
+                </figure>
+              ))}
+            </section>
+          ))}
         </div>
       </div>
       <Footer />
