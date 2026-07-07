@@ -95,7 +95,9 @@ type Page =
   | "checkout"
   | "auth"
   | "account"
-  | "admin";
+  | "admin"
+  | "privacy"
+  | "offer";
 
 interface Product {
   id: string;
@@ -300,6 +302,79 @@ const translations = {
       phone: "+7 915 266 0705",
       rights: "© 2026 FRONTE PARTE. All rights reserved.",
       made: "Made with care in Russia",
+      privacy: "Privacy Policy",
+      offer: "Public Offer",
+    },
+    legal: {
+      privacyTitle: "Privacy Policy",
+      offerTitle: "Public Offer",
+      updated: "Last updated: July 7, 2026",
+      note:
+        "This page is a template. Replace seller details, registration numbers, addresses and payment terms with your actual legal information before publication.",
+      privacySections: [
+        {
+          title: "1. Data controller",
+          body:
+            "FRONTE PARTE processes personal data submitted through the website, including name, email, phone number, delivery details, account data and order information.",
+        },
+        {
+          title: "2. Purpose of processing",
+          body:
+            "We use personal data to create accounts, process orders, arrange production and delivery, contact customers, provide support, prevent fraud and comply with legal obligations.",
+        },
+        {
+          title: "3. Legal basis and consent",
+          body:
+            "By submitting data on the website, the customer confirms consent to processing for the stated purposes. The customer may withdraw consent by contacting us, unless processing is required by law or an existing order.",
+        },
+        {
+          title: "4. Storage and protection",
+          body:
+            "Data is stored only as long as necessary for orders, accounting, support and legal compliance. We apply reasonable technical and organisational measures to protect it from unauthorised access.",
+        },
+        {
+          title: "5. Third parties",
+          body:
+            "We may share necessary data with delivery services, payment providers, hosting providers and other contractors who help operate the store and fulfil orders.",
+        },
+        {
+          title: "6. Customer rights",
+          body:
+            "Customers may request access, correction, deletion or restriction of their personal data by contacting hello@fronteparte.com.",
+        },
+      ],
+      offerSections: [
+        {
+          title: "1. General terms",
+          body:
+            "This public offer defines the terms of sale of FRONTE PARTE handmade knitwear through the website. Placing an order means full acceptance of these terms.",
+        },
+        {
+          title: "2. Product and price",
+          body:
+            "Product descriptions, available sizes and prices are shown on the product pages. Handmade items may have slight variations in texture, shade or measurements.",
+        },
+        {
+          title: "3. Order and payment",
+          body:
+            "The order is considered accepted after confirmation by the seller. Payment terms and available methods are shown during checkout or agreed with the customer directly.",
+        },
+        {
+          title: "4. Production and delivery",
+          body:
+            "Made-to-order pieces are usually produced and shipped within 3-4 weeks unless another timeframe is agreed. Delivery cost and timing depend on destination and carrier.",
+        },
+        {
+          title: "5. Returns and exchanges",
+          body:
+            "Return and exchange conditions depend on the product type, customisation and applicable consumer protection rules. Contact us before sending any item back.",
+        },
+        {
+          title: "6. Seller details",
+          body:
+            "Seller: FRONTE PARTE. Legal name, registration number, tax number, legal address and bank details must be inserted here before publication.",
+        },
+      ],
     },
     payment: {
       apple: "Apple Pay",
@@ -446,6 +521,79 @@ const translations = {
       phone: "+7 915 266 0705",
       rights: "© 2026 FRONTE PARTE. Все права защищены.",
       made: "Сделано с любовью в России",
+      privacy: "Политика конфиденциальности",
+      offer: "Оферта",
+    },
+    legal: {
+      privacyTitle: "Политика конфиденциальности",
+      offerTitle: "Публичная оферта",
+      updated: "Дата обновления: 7 июля 2026",
+      note:
+        "Это шаблон страницы. Перед публикацией замените реквизиты продавца, регистрационные номера, адреса и условия оплаты на ваши реальные юридические данные.",
+      privacySections: [
+        {
+          title: "1. Оператор персональных данных",
+          body:
+            "FRONTE PARTE обрабатывает персональные данные, которые пользователь передаёт через сайт: имя, email, телефон, адрес доставки, данные аккаунта и информацию о заказах.",
+        },
+        {
+          title: "2. Цели обработки",
+          body:
+            "Данные используются для регистрации аккаунта, оформления заказов, изготовления и доставки изделий, связи с клиентом, поддержки, предотвращения мошенничества и исполнения требований закона.",
+        },
+        {
+          title: "3. Согласие на обработку",
+          body:
+            "Отправляя данные на сайте, пользователь подтверждает согласие на их обработку для указанных целей. Согласие можно отозвать, написав нам, если обработка не требуется по закону или действующему заказу.",
+        },
+        {
+          title: "4. Хранение и защита",
+          body:
+            "Данные хранятся только столько, сколько необходимо для заказов, бухгалтерии, поддержки и соблюдения закона. Мы применяем разумные технические и организационные меры защиты.",
+        },
+        {
+          title: "5. Передача третьим лицам",
+          body:
+            "Мы можем передавать необходимые данные службам доставки, платёжным провайдерам, хостинг-провайдерам и подрядчикам, которые помогают работе магазина и исполнению заказов.",
+        },
+        {
+          title: "6. Права пользователя",
+          body:
+            "Пользователь может запросить доступ, исправление, удаление или ограничение обработки своих персональных данных, написав на hello@fronteparte.com.",
+        },
+      ],
+      offerSections: [
+        {
+          title: "1. Общие положения",
+          body:
+            "Настоящая публичная оферта определяет условия продажи трикотажных изделий ручной работы FRONTE PARTE через сайт. Оформление заказа означает полное согласие с условиями оферты.",
+        },
+        {
+          title: "2. Товар и цена",
+          body:
+            "Описание изделий, доступные размеры и цены указаны на страницах товаров. Для изделий ручной работы допустимы небольшие отличия в фактуре, оттенке и измерениях.",
+        },
+        {
+          title: "3. Заказ и оплата",
+          body:
+            "Заказ считается принятым после подтверждения продавцом. Условия и способы оплаты указываются при оформлении заказа или согласуются с клиентом напрямую.",
+        },
+        {
+          title: "4. Изготовление и доставка",
+          body:
+            "Изделия под заказ обычно изготавливаются и отправляются в течение 3-4 недель, если не согласован другой срок. Стоимость и сроки доставки зависят от направления и службы доставки.",
+        },
+        {
+          title: "5. Возврат и обмен",
+          body:
+            "Условия возврата и обмена зависят от типа изделия, индивидуальной кастомизации и применимых норм защиты прав потребителей. Перед отправкой возврата свяжитесь с нами.",
+        },
+        {
+          title: "6. Реквизиты продавца",
+          body:
+            "Продавец: FRONTE PARTE. Юридическое наименование, ИНН, ОГРН/ОГРНИП, юридический адрес и банковские реквизиты необходимо добавить перед публикацией.",
+        },
+      ],
     },
     payment: {
       apple: "Apple Pay",
@@ -744,6 +892,8 @@ function AppProvider({ children }: { children: React.ReactNode }) {
       auth: "Sign In — FRONTE PARTE",
       account: "My Account — FRONTE PARTE",
       admin: "Admin — FRONTE PARTE",
+      privacy: "Privacy Policy — FRONTE PARTE",
+      offer: "Public Offer — FRONTE PARTE",
     };
     document.title = titles[p];
   }, []);
@@ -1322,6 +1472,8 @@ function Footer() {
     { label: T.nav.shop, page: "shop" as Page },
     { label: T.nav.archive, page: "archive" as Page },
     { label: T.nav.soldOut, page: "soldOut" as Page },
+    { label: T.footer.privacy, page: "privacy" as Page },
+    { label: T.footer.offer, page: "offer" as Page },
   ];
 
   return (
@@ -1413,7 +1565,7 @@ function Footer() {
           >
             {T.footer.rights}
           </p>
-          <div className="flex gap-8">
+          <div className="flex flex-wrap justify-center sm:justify-end gap-x-8 gap-y-3">
             {footerLinks.map((l) => (
               <button
                 key={l.page}
@@ -3131,6 +3283,78 @@ function AdminPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LEGAL PAGES
+// ═══════════════════════════════════════════════════════════════
+
+function LegalPage({ type }: { type: "privacy" | "offer" }) {
+  const { T, lang } = useApp();
+  const title = type === "privacy" ? T.legal.privacyTitle : T.legal.offerTitle;
+  const sections = type === "privacy" ? T.legal.privacySections : T.legal.offerSections;
+
+  return (
+    <main className="pt-16 min-h-screen bg-background">
+      <section className="max-w-screen-md mx-auto px-6 py-20 md:py-28">
+        <p
+          className="text-[9px] tracking-[0.22em] text-foreground/40 mb-5 uppercase"
+          style={{ fontFamily: '"Jost", sans-serif' }}
+        >
+          FRONTE PARTE
+        </p>
+        <h1
+          className="text-4xl md:text-6xl italic text-foreground mb-5 leading-[1.05]"
+          style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
+        >
+          {title}
+        </h1>
+        <p
+          className="text-[12px] tracking-[0.08em] text-foreground/35 mb-10"
+          style={{ fontFamily: '"Jost", sans-serif' }}
+        >
+          {T.legal.updated}
+        </p>
+
+        <div
+          className="border border-foreground/10 bg-secondary px-5 py-4 mb-12 text-sm text-foreground/60 leading-relaxed"
+          style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+        >
+          {T.legal.note}
+        </div>
+
+        <div className="space-y-9">
+          {sections.map((section) => (
+            <section key={section.title}>
+              <h2
+                className="text-[11px] tracking-[0.18em] text-foreground mb-3 uppercase"
+                style={{ fontFamily: '"Jost", sans-serif' }}
+              >
+                {section.title}
+              </h2>
+              <p
+                className="text-[15px] text-foreground/65 leading-relaxed"
+                style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+              >
+                {section.body}
+              </p>
+            </section>
+          ))}
+        </div>
+
+        <div className="mt-14 pt-8 border-t border-border">
+          <a
+            href="mailto:hello@fronteparte.com"
+            className="text-[10px] tracking-[0.18em] text-foreground/45 hover:text-foreground transition-colors uppercase"
+            style={{ fontFamily: '"Jost", sans-serif' }}
+          >
+            {lang === "ru" ? "Связаться по юридическим вопросам" : "Contact for legal questions"}
+          </a>
+        </div>
+      </section>
+      <Footer />
+    </main>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ROUTER
 // ═══════════════════════════════════════════════════════════════
 
@@ -3147,6 +3371,8 @@ function PageRouter() {
     case "auth":     return <AuthPage />;
     case "account":  return <AccountPage />;
     case "admin":    return <AdminPage />;
+    case "privacy":  return <LegalPage type="privacy" />;
+    case "offer":    return <LegalPage type="offer" />;
     default:         return <HomePage />;
   }
 }
