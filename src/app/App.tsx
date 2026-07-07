@@ -30,6 +30,8 @@ import {
   Clock,
   ArrowRight,
   Check,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import heroWoolStillLife from "../imports/hero-wool-still-life.jpg";
 import fpLogoDark from "../imports/fp-logo-dark-transparent.png";
@@ -2446,6 +2448,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [fields, setFields] = useState({ login: "", email: "", password: "", name: "" });
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -2530,14 +2533,24 @@ function AuthPage() {
               style={{ fontFamily: '"Jost", sans-serif' }}>
               {T.auth.password}
             </label>
-            <input
-              type="password"
-              value={fields.password}
-              onChange={set("password")}
-              className={inputClass}
-              style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={fields.password}
+                onChange={set("password")}
+                className={`${inputClass} pr-12`}
+                style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-foreground/35 hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+              </button>
+            </div>
           </div>
 
           {mode === "register" && (
@@ -2579,7 +2592,9 @@ function AuthPage() {
           onClick={() => {
             setMode(mode === "login" ? "register" : "login");
             setErr("");
+            setFields((current) => ({ ...current, password: "" }));
             setMarketingOptIn(false);
+            setShowPassword(false);
           }}
           className="w-full text-center text-[9px] tracking-[0.12em] text-foreground/38 hover:text-foreground/60 transition-colors mt-6"
           style={{ fontFamily: '"Jost", sans-serif' }}
