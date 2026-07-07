@@ -35,12 +35,6 @@ import heroWoolStillLife from "../imports/hero-wool-still-life.jpg";
 import fpLogoDark from "../imports/fp-logo-dark-transparent.png";
 import fpLogoLight from "../imports/fp-logo-transparent.png";
 
-const archiveOriginalImages = Object.entries(
-  import.meta.glob("../imports/archive-original/*.jpg", { eager: true, import: "default" })
-)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([, src]) => src as string);
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8787" : "");
 
@@ -89,7 +83,6 @@ type Page =
   | "home"
   | "shop"
   | "product"
-  | "archive"
   | "soldOut"
   | "cart"
   | "checkout"
@@ -150,18 +143,6 @@ interface AdminActivity {
   timestamp: string;
 }
 
-interface ArchivePiece {
-  id: string;
-  title: string;
-  titleRu: string;
-  season: string;
-  year: number;
-  description: string;
-  descriptionRu: string;
-  image: string;
-  isUnique: boolean;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // TRANSLATIONS
 // ═══════════════════════════════════════════════════════════════
@@ -170,7 +151,6 @@ const translations = {
   en: {
     nav: {
       shop: "COLLECTION",
-      archive: "ARCHIVE",
       soldOut: "GONE",
       contact: "CONTACT",
       account: "ACCOUNT",
@@ -187,7 +167,7 @@ const translations = {
       storyTitle: "The Art of Making",
       storyText:
         "Each piece is born from a conversation between hand and material. We source the finest merino, cashmere and alpaca, then knit every garment to order — no waste, no compromise.",
-      storyBtn: "VIEW ARCHIVE",
+      storyBtn: "EXPLORE COLLECTION",
       marquee: "BESPOKE · HANDMADE · ARTISAN · EXCLUSIVE · SLOW FASHION · ",
     },
     shop: {
@@ -208,12 +188,6 @@ const translations = {
       shipping: "Made to order · Ships in 3–4 weeks",
       back: "Back to Collection",
       soldOut: "Sold Out",
-    },
-    archive: {
-      title: "Archive",
-      subtitle: "A record of handmade works",
-      unique: "One of a Kind",
-      limited: "Limited Edition",
     },
     soldOut: {
       title: "Gone Pieces",
@@ -253,6 +227,7 @@ const translations = {
       toRegister: "New to FRONTE PARTE? Create account",
       toLogin: "Already have an account? Sign in",
       error: "Invalid credentials. Please try again.",
+      marketingOptIn: "I agree to receive emails about new FRONTE PARTE pieces",
     },
     account: {
       title: "My Account",
@@ -272,10 +247,20 @@ const translations = {
     admin: {
       title: "ADMIN PANEL",
       tabs: {
+        overview: "OVERVIEW",
         products: "PRODUCTS",
         add: "ADD PRODUCT",
         edit: "EDIT PRODUCT",
         activity: "ACTIVITY",
+      },
+      stats: {
+        totalProducts: "TOTAL PRODUCTS",
+        inStock: "IN STOCK",
+        soldOut: "SOLD OUT",
+        orders: "ORDERS",
+        revenue: "REVENUE",
+        recentOrders: "RECENT ORDERS",
+        noOrders: "No customer orders yet.",
       },
       nameEn: "NAME (EN)",
       nameRu: "NAME (RU)",
@@ -389,7 +374,6 @@ const translations = {
   ru: {
     nav: {
       shop: "КОЛЛЕКЦИЯ",
-      archive: "АРХИВ",
       soldOut: "УЖЕ УШЛО",
       contact: "КОНТАКТЫ",
       account: "КАБИНЕТ",
@@ -406,7 +390,7 @@ const translations = {
       storyTitle: "Искусство создания",
       storyText:
         "Каждое изделие рождается из диалога между руками и материалом. Мы используем лучшее мерино, кашемир и альпаку, вяжем каждую вещь на заказ — без отходов, без компромиссов.",
-      storyBtn: "СМОТРЕТЬ АРХИВ",
+      storyBtn: "СМОТРЕТЬ КОЛЛЕКЦИЮ",
       marquee: "БЕСПОК · РУЧНАЯ РАБОТА · РЕМЕСЛО · ЭКСКЛЮЗИВ · МЕДЛЕННАЯ МОДА · ",
     },
     shop: {
@@ -427,12 +411,6 @@ const translations = {
       shipping: "Под заказ · Доставка 3–4 недели",
       back: "Назад к коллекции",
       soldOut: "Нет в наличии",
-    },
-    archive: {
-      title: "Архив",
-      subtitle: "Летопись изделий ручной работы",
-      unique: "Единственный экземпляр",
-      limited: "Лимитированная серия",
     },
     soldOut: {
       title: "Уже ушло",
@@ -472,6 +450,7 @@ const translations = {
       toRegister: "Нет аккаунта? Зарегистрироваться",
       toLogin: "Уже есть аккаунт? Войти",
       error: "Неверные данные. Попробуйте снова.",
+      marketingOptIn: "Я согласен получать письма о новых изделиях FRONTE PARTE",
     },
     account: {
       title: "Мой кабинет",
@@ -491,10 +470,20 @@ const translations = {
     admin: {
       title: "ПАНЕЛЬ УПРАВЛЕНИЯ",
       tabs: {
+        overview: "ОБЗОР",
         products: "ТОВАРЫ",
         add: "ДОБАВИТЬ",
         edit: "РЕДАКТИРОВАТЬ",
         activity: "ДЕЙСТВИЯ",
+      },
+      stats: {
+        totalProducts: "ВСЕГО ТОВАРОВ",
+        inStock: "В НАЛИЧИИ",
+        soldOut: "РАСПРОДАНО",
+        orders: "ЗАКАЗЫ",
+        revenue: "ВЫРУЧКА",
+        recentOrders: "ПОСЛЕДНИЕ ЗАКАЗЫ",
+        noOrders: "Заказов клиентов пока нет.",
       },
       nameEn: "НАЗВАНИЕ (EN)",
       nameRu: "НАЗВАНИЕ (RU)",
@@ -734,14 +723,6 @@ const SEED_PRODUCTS: Product[] = [
   },
 ];
 
-const ARCHIVE_GROUP_SIZES = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 1, 1, 1, 1, 1, 11];
-
-const ARCHIVE_GROUPS = ARCHIVE_GROUP_SIZES.reduce<string[][]>((groups, size) => {
-  const start = groups.reduce((total, group) => total + group.length, 0);
-  groups.push(archiveOriginalImages.slice(start, start + size));
-  return groups;
-}, []);
-
 const PAYMENT_METHODS = [
   { id: "apple_usd", labelKey: "apple" as const, currency: "USD", icon: "apple" },
   { id: "apple_eur", labelKey: "apple" as const, currency: "EUR", icon: "apple" },
@@ -802,7 +783,7 @@ interface AppCtx {
   isAdminAuthenticated: boolean;
   login: (loginStr: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  register: (email: string, password: string, name: string) => boolean;
+  register: (email: string, password: string, name: string, marketingOptIn: boolean) => boolean;
   products: Product[];
   setProducts: (p: Product[] | ((prev: Product[]) => Product[])) => void;
   reloadProducts: () => Promise<void>;
@@ -885,7 +866,6 @@ function AppProvider({ children }: { children: React.ReactNode }) {
       home: "FRONTE PARTE — Bespoke Knitwear",
       shop: "Collection — FRONTE PARTE",
       product: "Product — FRONTE PARTE",
-      archive: "Archive — FRONTE PARTE",
       soldOut: "Gone Pieces — FRONTE PARTE",
       cart: "Cart — FRONTE PARTE",
       checkout: "Checkout — FRONTE PARTE",
@@ -946,7 +926,7 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   }, [adminSession, setUser, navigate]);
 
   const register = useCallback(
-    (email: string, password: string, name: string): boolean => {
+    (email: string, password: string, name: string, marketingOptIn: boolean): boolean => {
       if (email === ADMIN_USER.email || name.trim() === "FRONTE") return false;
       if (users.find((u) => u.email === email)) return false;
       const newUser: AppUser = {
@@ -958,6 +938,12 @@ function AppProvider({ children }: { children: React.ReactNode }) {
       };
       setUsers((prev) => [...prev, newUser]);
       setUser(newUser);
+      apiRequest("/api/customers/register", {
+        method: "POST",
+        body: JSON.stringify({ email, name, marketingOptIn }),
+      }).catch(() => {
+        /* Registration still works locally if the secure API is offline. */
+      });
       return true;
     },
     [users, setUsers, setUser]
@@ -1319,7 +1305,6 @@ function Nav() {
 
   const links = [
     { label: T.nav.shop, page: "shop" as Page },
-    { label: T.nav.archive, page: "archive" as Page },
     { label: T.nav.soldOut, page: "soldOut" as Page },
     {
       label: T.nav.contact,
@@ -1470,7 +1455,6 @@ function Footer() {
   const { T, navigate } = useApp();
   const footerLinks = [
     { label: T.nav.shop, page: "shop" as Page },
-    { label: T.nav.archive, page: "archive" as Page },
     { label: T.nav.soldOut, page: "soldOut" as Page },
     { label: T.footer.privacy, page: "privacy" as Page },
     { label: T.footer.offer, page: "offer" as Page },
@@ -1786,7 +1770,7 @@ function HomePage() {
               {T.home.storyText}
             </p>
             <button
-              onClick={() => navigate("archive")}
+              onClick={() => navigate("shop")}
               className="group inline-flex items-center gap-3 text-[9px] tracking-[0.22em] text-foreground border-b border-foreground/30 pb-1 hover:border-foreground transition-colors"
               style={{ fontFamily: '"Jost", sans-serif' }}
             >
@@ -2106,60 +2090,6 @@ function ProductPage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
-      <Footer />
-    </main>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ARCHIVE PAGE
-// ═══════════════════════════════════════════════════════════════
-
-function ArchivePage() {
-  const { T } = useApp();
-
-  const gridClass = (count: number) => {
-    if (count === 1) return "grid-cols-1 max-w-[760px] mx-auto";
-    if (count === 2) return "grid-cols-1 md:grid-cols-2";
-    if (count === 3) return "grid-cols-1 md:grid-cols-3";
-    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-  };
-
-  return (
-    <main className="pt-16">
-      <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 py-16">
-        <div className="mb-14 max-w-screen-xl mx-auto">
-          <h1
-            className="text-5xl md:text-7xl italic text-foreground mb-4"
-            style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
-          >
-            {T.archive.title}
-          </h1>
-          <p
-            className="text-sm text-foreground/45"
-            style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
-          >
-            {T.archive.subtitle}
-          </p>
-        </div>
-
-        <div className="max-w-screen-xl mx-auto space-y-5 md:space-y-7">
-          {ARCHIVE_GROUPS.map((group, groupIndex) => (
-            <section key={groupIndex} className={`grid ${gridClass(group.length)} items-start gap-5 md:gap-6`}>
-              {group.map((image, imageIndex) => (
-                <figure key={`${groupIndex}-${imageIndex}`} className="m-0 self-start">
-                  <img
-                    src={image}
-                    alt=""
-                    className="block w-full h-auto"
-                    loading="lazy"
-                  />
-                </figure>
-              ))}
-            </section>
-          ))}
         </div>
       </div>
       <Footer />
@@ -2515,6 +2445,7 @@ function AuthPage() {
   const { T, login, register, navigate, user, isAdminAuthenticated } = useApp();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [fields, setFields] = useState({ login: "", email: "", password: "", name: "" });
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -2539,7 +2470,7 @@ function AuthPage() {
         setSubmitting(false);
         return;
       }
-      if (!register(fields.email, fields.password, fields.name)) setErr(T.auth.error);
+      if (!register(fields.email, fields.password, fields.name, marketingOptIn)) setErr(T.auth.error);
     }
     setSubmitting(false);
   };
@@ -2609,6 +2540,23 @@ function AuthPage() {
             />
           </div>
 
+          {mode === "register" && (
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={(e) => setMarketingOptIn(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-foreground shrink-0"
+              />
+              <span
+                className="text-[11px] leading-relaxed text-foreground/50"
+                style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+              >
+                {T.auth.marketingOptIn}
+              </span>
+            </label>
+          )}
+
           {err && (
             <p className="text-destructive text-xs text-center" style={{ fontFamily: '"Jost", sans-serif' }}>
               {err}
@@ -2628,7 +2576,11 @@ function AuthPage() {
         </form>
 
         <button
-          onClick={() => { setMode(mode === "login" ? "register" : "login"); setErr(""); }}
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setErr("");
+            setMarketingOptIn(false);
+          }}
           className="w-full text-center text-[9px] tracking-[0.12em] text-foreground/38 hover:text-foreground/60 transition-colors mt-6"
           style={{ fontFamily: '"Jost", sans-serif' }}
         >
@@ -2841,7 +2793,7 @@ function AccountPage() {
 // ADMIN PAGE
 // ═══════════════════════════════════════════════════════════════
 
-type AdminTab = "products" | "add" | "activity";
+type AdminTab = "overview" | "products" | "add" | "activity";
 
 const emptyProductForm = (): Omit<Product, "id"> => ({
   slug: "",
@@ -2865,6 +2817,7 @@ function AdminPage() {
     logout,
     navigate,
     products,
+    orders,
     activity,
     logActivity,
     saveAdminProduct,
@@ -2872,7 +2825,7 @@ function AdminPage() {
     setAdminProductStock,
   } = useApp();
 
-  const [tab, setTab] = useState<AdminTab>("products");
+  const [tab, setTab] = useState<AdminTab>("overview");
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<Omit<Product, "id">>(emptyProductForm());
   const [sizesStr, setSizesStr] = useState("XS,S,M,L,XL");
@@ -2992,10 +2945,22 @@ function AdminPage() {
   const fieldStyle = { fontFamily: '"Jost", sans-serif', fontWeight: 300 };
 
   const tabLabel = (t: AdminTab) => {
+    if (t === "overview") return T.admin.tabs.overview;
     if (t === "products") return T.admin.tabs.products;
     if (t === "add") return editing ? T.admin.tabs.edit : T.admin.tabs.add;
     return T.admin.tabs.activity;
   };
+
+  const adminStats = [
+    { label: T.admin.stats.totalProducts, value: products.length.toLocaleString("ru-RU") },
+    { label: T.admin.stats.inStock, value: products.filter((p) => p.inStock).length.toLocaleString("ru-RU") },
+    { label: T.admin.stats.soldOut, value: products.filter((p) => !p.inStock).length.toLocaleString("ru-RU") },
+    { label: T.admin.stats.orders, value: orders.length.toLocaleString("ru-RU") },
+    {
+      label: T.admin.stats.revenue,
+      value: `${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString("ru-RU")} ₽`,
+    },
+  ];
 
   return (
     <main className="pt-16 min-h-screen">
@@ -3009,7 +2974,7 @@ function AdminPage() {
             >
               {T.admin.title}
             </span>
-            {(["products", "add", "activity"] as AdminTab[]).map((t) => (
+            {(["overview", "products", "add", "activity"] as AdminTab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => {
@@ -3045,6 +3010,133 @@ function AdminPage() {
             style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
           >
             {adminError}
+          </div>
+        )}
+
+        {/* ── Overview ── */}
+        {tab === "overview" && (
+          <div>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-px mb-10">
+              {adminStats.map((stat) => (
+                <div key={stat.label} className="bg-secondary px-5 py-6 min-h-[116px] flex flex-col justify-between">
+                  <p
+                    className="text-[8.5px] tracking-[0.18em] text-foreground/40"
+                    style={{ fontFamily: '"Jost", sans-serif' }}
+                  >
+                    {stat.label}
+                  </p>
+                  <p
+                    className="text-3xl italic text-foreground"
+                    style={{ fontFamily: '"Bodoni Moda", Georgia, serif', fontWeight: 400 }}
+                  >
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+              <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-6">
+                  <h2
+                    className="text-[9px] tracking-[0.22em] text-foreground/40"
+                    style={{ fontFamily: '"Jost", sans-serif' }}
+                  >
+                    {T.admin.stats.recentOrders}
+                  </h2>
+                  <button
+                    onClick={() => setTab("products")}
+                    className="text-[9px] tracking-[0.18em] text-foreground/35 hover:text-foreground transition-colors"
+                    style={{ fontFamily: '"Jost", sans-serif' }}
+                  >
+                    {T.admin.tabs.products}
+                  </button>
+                </div>
+
+                {orders.length === 0 ? (
+                  <p
+                    className="text-sm text-foreground/30"
+                    style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+                  >
+                    {T.admin.stats.noOrders}
+                  </p>
+                ) : (
+                  <div className="space-y-px">
+                    {orders.slice(0, 5).map((order) => (
+                      <div key={order.id} className="bg-secondary px-5 py-4 flex items-center justify-between gap-5">
+                        <div>
+                          <p
+                            className="text-sm text-foreground"
+                            style={{ fontFamily: '"Jost", sans-serif' }}
+                          >
+                            #{order.id}
+                          </p>
+                          <p
+                            className="text-[9px] text-foreground/38 mt-1"
+                            style={{ fontFamily: '"Jost", sans-serif' }}
+                          >
+                            {new Date(order.date).toLocaleDateString(
+                              lang === "ru" ? "ru-RU" : "en-GB",
+                              { year: "numeric", month: "short", day: "2-digit" }
+                            )}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p
+                            className="text-sm text-foreground"
+                            style={{ fontFamily: '"Jost", sans-serif' }}
+                          >
+                            {order.total.toLocaleString("ru-RU")} ₽
+                          </p>
+                          <p
+                            className="text-[9px] text-foreground/38 mt-1"
+                            style={{ fontFamily: '"Jost", sans-serif' }}
+                          >
+                            {order.items.length} items
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h2
+                  className="text-[9px] tracking-[0.22em] text-foreground/40 mb-6"
+                  style={{ fontFamily: '"Jost", sans-serif' }}
+                >
+                  {T.admin.tabs.activity}
+                </h2>
+                {activity.length === 0 ? (
+                  <p className="text-sm text-foreground/30" style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}>
+                    {T.admin.noActivity}
+                  </p>
+                ) : (
+                  <div className="space-y-px">
+                    {activity.slice(0, 4).map((entry) => (
+                      <div key={entry.id} className="bg-secondary px-5 py-4">
+                        <p
+                          className="text-sm text-foreground/70"
+                          style={{ fontFamily: '"Jost", sans-serif', fontWeight: 300 }}
+                        >
+                          {lang === "en" ? entry.action : entry.actionRu}
+                        </p>
+                        <p
+                          className="text-[9px] text-foreground/35 mt-2"
+                          style={{ fontFamily: '"Jost", sans-serif' }}
+                        >
+                          {new Date(entry.timestamp).toLocaleString(
+                            lang === "ru" ? "ru-RU" : "en-GB",
+                            { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -3364,7 +3456,6 @@ function PageRouter() {
     case "home":     return <HomePage />;
     case "shop":     return <ShopPage />;
     case "product":  return <ProductPage />;
-    case "archive":  return <ArchivePage />;
     case "soldOut":  return <SoldOutPage />;
     case "cart":     return <CartPage />;
     case "checkout": return <CheckoutPage />;

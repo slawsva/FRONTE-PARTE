@@ -14,6 +14,7 @@ const dataDir = process.env.FP_DATA_DIR
   ? path.resolve(process.env.FP_DATA_DIR)
   : path.join(rootDir, ".fp-secure-data");
 const productsFile = path.join(dataDir, "products.json");
+const customersFile = path.join(dataDir, "customers.json");
 const seedFile = fileURLToPath(new URL("./seed-products.json", import.meta.url));
 
 const PORT = Number(process.env.PORT || process.env.FP_PORT || 8787);
@@ -28,6 +29,9 @@ const ADMIN_PASSWORD = process.env.FP_ADMIN_PASSWORD || "";
 const ADMIN_PASSWORD_HASH = process.env.FP_ADMIN_PASSWORD_HASH || "";
 const SESSION_SECRET =
   process.env.FP_SESSION_SECRET || "";
+const PUBLIC_SITE_URL = (process.env.FP_PUBLIC_SITE_URL || `http://localhost:${PORT}`).replace(/\/+$/, "");
+const EMAIL_FROM = process.env.FP_EMAIL_FROM || "";
+const RESEND_API_KEY = process.env.FP_RESEND_API_KEY || "";
 const allowedOrigins = new Set(
   (process.env.FP_ALLOWED_ORIGINS || `http://localhost:${PORT},http://127.0.0.1:${PORT},http://localhost:5173,http://127.0.0.1:5173`)
     .split(",")
@@ -58,6 +62,7 @@ if (!ADMIN_PASSWORD_HASH && !ADMIN_PASSWORD) {
 const sessions = new Map();
 const loginAttempts = new Map();
 let productWriteQueue = Promise.resolve();
+let customerWriteQueue = Promise.resolve();
 
 function loadDotEnv(filePath) {
   if (!existsSync(filePath)) return;
@@ -279,6 +284,43 @@ async function writeProducts(products) {
   return productWriteQueue;
 }
 
+async function ensureCustomersFile() {
+  await mkdir(dataDir, { recursive: true });
+  try {
+    await access(customersFile, constants.F_OK);
+  } catch {
+    await writeFile(customersFile, "[]\n", { mode: 0o600 });
+  }
+}
+
+async function readCustomers() {
+  await ensureCustomersFile();
+  const raw = await readFile(customersFile, "utf8");
+  const customers = JSON.parse(raw);
+
+  return Array.isArray(customers)
+    ? customers
+        .map((customer) => ({
+          email: String(customer.email || "").trim().toLowerCase(),
+          name: String(customer.name || "").trim(),
+          marketingOptIn: Boolean(customer.marketingOptIn),
+          createdAt: String(customer.createdAt || ""),
+          updatedAt: String(customer.updatedAt || ""),
+        }))
+        .filter((customer) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
+    : [];
+}
+
+async function writeCustomers(customers) {
+  customerWriteQueue = customerWriteQueue.then(async () => {
+    await mkdir(dataDir, { recursive: true });
+    const tmp = `${customersFile}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmp, JSON.stringify(customers, null, 2), { mode: 0o600 });
+    await rename(tmp, customersFile);
+  });
+  return customerWriteQueue;
+}
+
 function cleanString(value, field, maxLength) {
   if (typeof value !== "string") throw new Error(`${field} must be a string`);
   const trimmed = value.trim();
@@ -291,6 +333,14 @@ function cleanOptionalString(value, field, maxLength) {
   const trimmed = value.trim();
   if (trimmed.length > maxLength) throw new Error(`${field} has invalid length`);
   return trimmed;
+}
+
+function cleanEmail(value) {
+  const email = cleanString(value, "email", 254).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("email is invalid");
+  }
+  return email;
 }
 
 function cleanImageUrl(value) {
@@ -340,6 +390,111 @@ function normalizeProduct(input, existingId) {
   };
 }
 
+async function upsertCustomer(input) {
+  const email = cleanEmail(input.email);
+  const name = cleanOptionalString(input.name || "", "name", 120);
+  const marketingOptIn = Boolean(input.marketingOptIn);
+  const customers = await readCustomers();
+  const now = new Date().toISOString();
+  const existing = customers.find((customer) => customer.email === email);
+
+  if (existing) {
+    existing.name = name || existing.name;
+    existing.marketingOptIn = marketingOptIn;
+    existing.updatedAt = now;
+    await writeCustomers(customers);
+    return existing;
+  }
+
+  const customer = { email, name, marketingOptIn, createdAt: now, updatedAt: now };
+  await writeCustomers([...customers, customer]);
+  return customer;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function productEmailHtml(product) {
+  const image = product.images[0] || "";
+  return `
+    <div style="font-family:Arial,sans-serif;color:#111;line-height:1.5">
+      <h1 style="font-family:Georgia,serif;font-weight:400;font-style:italic">New piece in FRONTE PARTE</h1>
+      ${image ? `<img src="${image}" alt="${escapeHtml(product.name)}" style="width:100%;max-width:520px;height:auto;display:block;margin:24px 0" />` : ""}
+      <h2 style="font-family:Georgia,serif;font-weight:400">${escapeHtml(product.name)} / ${escapeHtml(product.nameRu)}</h2>
+      <p>${escapeHtml(product.descriptionRu || product.description || "")}</p>
+      <p><strong>${product.price.toLocaleString("ru-RU")} ₽</strong></p>
+      <p><a href="${PUBLIC_SITE_URL}" style="color:#111">Open collection</a></p>
+    </div>
+  `;
+}
+
+async function sendEmail(to, subject, text, html) {
+  if (!RESEND_API_KEY || !EMAIL_FROM) {
+    console.warn("Email notification skipped: set FP_RESEND_API_KEY and FP_EMAIL_FROM.");
+    return { sent: false, skipped: true };
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Email provider rejected message: ${response.status} ${body}`);
+  }
+
+  return { sent: true };
+}
+
+async function notifyCustomersAboutProduct(product) {
+  const customers = await readCustomers();
+  const recipients = Array.from(
+    new Set(customers.filter((customer) => customer.marketingOptIn).map((customer) => customer.email))
+  ).filter(Boolean);
+  if (recipients.length === 0) return { recipients: 0, sent: 0 };
+
+  const subject = `FRONTE PARTE: new piece - ${product.name}`;
+  const text = [
+    "A new piece has been added to FRONTE PARTE.",
+    "",
+    `${product.name} / ${product.nameRu}`,
+    `${product.price.toLocaleString("ru-RU")} ₽`,
+    product.descriptionRu || product.description || "",
+    "",
+    `Open collection: ${PUBLIC_SITE_URL}`,
+  ].join("\n");
+  const html = productEmailHtml(product);
+  let sent = 0;
+
+  for (const email of recipients) {
+    try {
+      const result = await sendEmail(email, subject, text, html);
+      if (result.sent) sent += 1;
+    } catch (error) {
+      console.error(`Could not send product notification to ${email}:`, error);
+    }
+  }
+
+  return { recipients: recipients.length, sent };
+}
+
 function requireAdmin(req, res) {
   if (!assertTrustedOrigin(req)) {
     sendError(res, 403, "Untrusted origin");
@@ -376,6 +531,13 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/products") {
     return sendJson(res, 200, await readProducts());
+  }
+
+  if (req.method === "POST" && pathname === "/api/customers/register") {
+    if (!assertTrustedOrigin(req)) return sendError(res, 403, "Untrusted origin");
+    const body = await readJson(req, 8 * 1024);
+    const customer = await upsertCustomer(body);
+    return sendJson(res, 201, { ok: true, email: customer.email });
   }
 
   if (req.method === "GET" && pathname === "/api/auth/session") {
@@ -425,7 +587,8 @@ async function handleApi(req, res, pathname) {
     const product = normalizeProduct(body);
     const next = [...products, product];
     await writeProducts(next);
-    return sendJson(res, 201, product);
+    const notifications = await notifyCustomersAboutProduct(product);
+    return sendJson(res, 201, { ...product, notifications });
   }
 
   const productMatch = pathname.match(/^\/api\/products\/([a-zA-Z0-9_-]+)(?:\/stock)?$/);
